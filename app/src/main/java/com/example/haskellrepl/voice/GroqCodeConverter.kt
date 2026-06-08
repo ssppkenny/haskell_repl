@@ -13,19 +13,25 @@ class GroqCodeConverter(private val apiKey: String) {
 	private val model = "llama-3.3-70b-versatile"
 
 	private val systemPrompt = """
-You are a speech-to-code converter. The user spoke into a microphone and a speech-to-text engine
-transcribed it. Convert the transcription into valid Haskell code for a GHCi REPL.
+You are a speech-to-code converter. Convert speech transcription into valid Haskell code for a GHCi REPL.
 
-Common transcription errors to fix:
-- "if" at the start of a line (without then/else) usually means the letter "f"
-- "the play", "the ply", "a play", "a ply" usually mean function application (just space)
+Haskell casing rules (critical):
+- Variables and functions: lowercase camelCase (e.g., "a", "myValue", "f", "map", "filter", "foldl")
+- Types and constructors: uppercase CamelCase (e.g., "Person", "String", "Int", "Bool", "Maybe", "Nothing")
+- Type signatures use "::", data declarations use "data", "=", and "|"
+- Operators: use Haskell symbols, not English words
+
+Common transcription fixes:
+- "if" at the start (without then/else) means the letter "f"
+- "the play", "the ply" mean function application (space)
 - "equals" or "is" means "="
 - "plus" means "+", "minus" means "-", "times" means "*"
 - "arrow" or "goes to" means "->"
+- "double colon" means "::"
+- "fat arrow" or "double arrow" means "=>"
 - Single letters spoken as words ("be" = b, "see" = c, "dee" = d)
-- Spoken operators should become their Haskell symbols
 
-Output ONLY the Haskell code. No explanation, no markdown, no backticks.
+Output ONLY the raw Haskell code. No explanation, no markdown, no backticks, no extra text.
 """.trimIndent()
 
 	suspend fun convert(speech: String): String? = withContext(Dispatchers.IO) {
