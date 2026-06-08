@@ -217,6 +217,10 @@ class VoiceInputManager(private val context: android.content.Context) {
 			result = result.replace(Regex("\\b${Regex.escape(word)}\\b"), symbol)
 		}
 
+		if (result.startsWith("if ") && !result.contains("then") && !result.contains("else")) {
+			result = "f " + result.substring(3)
+		}
+
 		result = result
 			.replace(Regex("""\s+"""), " ")
 			.trim()
