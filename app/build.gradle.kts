@@ -40,19 +40,19 @@ android {
 		}
 	}
 
-	buildTypes {
-		release {
-			isMinifyEnabled = false
-			signingConfig = signingConfigs.getByName("release")
-		}
-	}
-
 	signingConfigs {
 		create("release") {
 			storeFile = rootProject.file("release.jks")
 			storePassword = "android"
 			keyAlias = "release"
 			keyPassword = "android"
+		}
+	}
+
+	buildTypes {
+		release {
+			isMinifyEnabled = false
+			signingConfig = signingConfigs.getByName("release")
 		}
 	}
 }
