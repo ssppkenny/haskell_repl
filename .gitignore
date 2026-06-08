@@ -1,0 +1,8 @@
+*.iml
+.gradle/
+build/
+.idea/
+local.properties
+app/src/main/jniLibs/
+app/src/main/assets/ghci-root/
+app/.cxx/
