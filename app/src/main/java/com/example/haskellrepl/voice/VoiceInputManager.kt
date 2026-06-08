@@ -50,16 +50,31 @@ class VoiceInputManager(private val context: android.content.Context) {
 		"greater than or equal to" to ">=",
 		"divided by" to "/",
 		"dot dot" to "..",
+		"dollar bang" to "$!",
+		"bang bang" to "!!",
+		"exclamation exclamation" to "!!",
+		"double pipe" to "||",
+		"logical or" to "||",
+		"double ampersand" to "&&",
+		"logical and" to "&&",
+		"double caret" to "^^",
+		"double hat" to "^^",
+		"double star" to "**",
+		"star star" to "**",
+		"monadic bind" to ">>=",
+		"bind" to ">>=",
 		"greater than" to ">",
 		"less than" to "<",
 		"open bracket" to "[",
 		"close bracket" to "]",
 		"open paren" to "(",
 		"close paren" to ")",
+		"open brace" to "{",
+		"close brace" to "}",
 		"equals" to "=",
 		"equal" to "=",
 		"arrow" to "->",
-		"colon" to "::",
+		"colon" to ":",
 		"lambda" to "\\",
 		"backslash" to "\\",
 		"pipe" to "|",
@@ -69,10 +84,17 @@ class VoiceInputManager(private val context: android.content.Context) {
 		"minus" to "-",
 		"times" to "*",
 		"star" to "*",
-		"divide" to "/",
 		"slash" to "/",
+		"divide" to "/",
 		"comma" to ",",
 		"period" to ".",
+		"caret" to "^",
+		"hat" to "^",
+		"tilde" to "~",
+		"tilda" to "~",
+		"at sign" to "@",
+		"bang" to "!",
+		"exclamation" to "!",
 		"be" to "b",
 		"de" to "d",
 	)
@@ -185,6 +207,10 @@ class VoiceInputManager(private val context: android.content.Context) {
 		var result = text.trim()
 			.replace(Regex("""[.!?,;:]$"""), "")
 			.lowercase()
+
+		result = result
+			.replace(Regex("""(\d)([a-z])"""), "$1 $2")
+			.replace(Regex("""([a-z])(\d)"""), "$1 $2")
 
 		for ((word, symbol) in wordMap) {
 			result = result.replace(word, symbol)
