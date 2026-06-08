@@ -80,7 +80,7 @@ fun ReplScreen(
 			OutputArea(
 				lines = outputLines,
 				listState = listState,
-				modifier = Modifier.weight(1f)
+				modifier = Modifier.weight(1f).statusBarsPadding()
 			)
 
 			InputArea(
@@ -185,7 +185,7 @@ private fun InputArea(
 	modifier: Modifier = Modifier
 ) {
 	Surface(
-		modifier = modifier.fillMaxWidth(),
+		modifier = modifier.fillMaxWidth().navigationBarsPadding(),
 		color = TerminalSurface,
 		tonalElevation = 4.dp
 	) {

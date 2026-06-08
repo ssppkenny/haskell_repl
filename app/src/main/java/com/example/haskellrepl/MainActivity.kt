@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.IBinder
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -54,6 +55,7 @@ class MainActivity : ComponentActivity() {
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
+		enableEdgeToEdge()
 		voiceManager = VoiceInputManager(this)
 		groqKeyState.value = voiceManager.getGroqApiKey()
 
@@ -146,8 +148,8 @@ class MainActivity : ComponentActivity() {
 								onMicPressEnd = {
 									voiceManager.stopRecording()
 								},
-								historyEnabled = true,
-								quickActionsEnabled = true,
+								historyEnabled = false,
+								quickActionsEnabled = false,
 								groqKey = groqKeyState.value,
 								onSetGroqKey = { key ->
 									voiceManager.setGroqApiKey(key)
