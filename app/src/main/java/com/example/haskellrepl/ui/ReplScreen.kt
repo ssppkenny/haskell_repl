@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,10 +47,13 @@ fun ReplScreen(
 	onMicPressEnd: () -> Unit,
 	historyEnabled: Boolean,
 	quickActionsEnabled: Boolean,
+	groqKey: String?,
+	onSetGroqKey: (String) -> Unit,
 	modifier: Modifier = Modifier
 ) {
 	var inputValue by remember { mutableStateOf(TextFieldValue("")) }
 	val listState = rememberLazyListState()
+	var showKeyDialog by remember { mutableStateOf(false) }
 
 	LaunchedEffect(voiceState) {
 		if (voiceState is VoiceInputManager.State.Result) {
@@ -95,7 +99,8 @@ fun ReplScreen(
 				onInterrupt = onInterrupt,
 				voiceState = voiceState,
 				onMicPressStart = onMicPressStart,
-				onMicPressEnd = onMicPressEnd
+				onMicPressEnd = onMicPressEnd,
+				onSettingsClick = { showKeyDialog = true }
 			)
 		}
 
@@ -110,6 +115,17 @@ fun ReplScreen(
 				}
 			)
 		}
+	}
+
+	if (showKeyDialog) {
+		GroqKeyDialog(
+			currentKey = groqKey,
+			onDismiss = { showKeyDialog = false },
+			onSave = {
+				onSetGroqKey(it)
+				showKeyDialog = false
+			}
+		)
 	}
 }
 
@@ -165,6 +181,7 @@ private fun InputArea(
 	voiceState: VoiceInputManager.State,
 	onMicPressStart: () -> Unit,
 	onMicPressEnd: () -> Unit,
+	onSettingsClick: () -> Unit,
 	modifier: Modifier = Modifier
 ) {
 	Surface(
@@ -218,6 +235,9 @@ private fun InputArea(
 					onPressStart = onMicPressStart,
 					onPressEnd = onMicPressEnd
 				)
+				IconButton(onClick = onSettingsClick) {
+					Text("\u2699", fontSize = 16.sp)
+				}
 				IconButton(onClick = onSend) {
 					Text(">", color = TerminalGreen, fontSize = 18.sp)
 				}
@@ -305,6 +325,9 @@ private fun MicButton(
 			is VoiceInputManager.State.Downloading -> {
 				Text("⬇", fontSize = 16.sp)
 			}
+			is VoiceInputManager.State.Thinking -> {
+				Text("🤖", fontSize = 16.sp)
+			}
 			is VoiceInputManager.State.Error -> {
 				Text("⚠", fontSize = 16.sp, color = TerminalRed)
 			}
@@ -313,4 +336,46 @@ private fun MicButton(
 			}
 		}
 	}
+}
+
+@Composable
+private fun GroqKeyDialog(
+	currentKey: String?,
+	onDismiss: () -> Unit,
+	onSave: (String) -> Unit
+) {
+	var keyValue by remember { mutableStateOf(currentKey ?: "") }
+
+	AlertDialog(
+		onDismissRequest = onDismiss,
+		title = { Text("Groq API Key") },
+		text = {
+			Column {
+				Text(
+					text = "Enter your Groq API key for smart speech-to-code conversion. Get one at console.groq.com",
+					style = MaterialTheme.typography.bodySmall,
+					color = TerminalGray
+				)
+				Spacer(Modifier.height(8.dp))
+				OutlinedTextField(
+					value = keyValue,
+					onValueChange = { keyValue = it },
+					label = { Text("API Key") },
+					visualTransformation = PasswordVisualTransformation(),
+					singleLine = true,
+					modifier = Modifier.fillMaxWidth()
+				)
+			}
+		},
+		confirmButton = {
+			TextButton(onClick = { onSave(keyValue.trim()) }) {
+				Text("Save")
+			}
+		},
+		dismissButton = {
+			TextButton(onClick = onDismiss) {
+				Text("Cancel")
+			}
+		}
+	)
 }

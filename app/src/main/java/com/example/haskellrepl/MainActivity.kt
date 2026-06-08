@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
 	private val stateFlow = MutableStateFlow<ReplService.ReplState>(ReplService.ReplState.Extracting)
 	private val serviceFlag = mutableIntStateOf(0)
 	private lateinit var voiceManager: VoiceInputManager
+	private val groqKeyState = mutableStateOf<String?>(null)
 
 	private val connection = object : ServiceConnection {
 		override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -54,6 +55,7 @@ class MainActivity : ComponentActivity() {
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		voiceManager = VoiceInputManager(this)
+		groqKeyState.value = voiceManager.getGroqApiKey()
 
 		bindService(
 			Intent(this, ReplService::class.java),
@@ -145,7 +147,12 @@ class MainActivity : ComponentActivity() {
 									voiceManager.stopRecording()
 								},
 								historyEnabled = true,
-								quickActionsEnabled = true
+								quickActionsEnabled = true,
+								groqKey = groqKeyState.value,
+								onSetGroqKey = { key ->
+									voiceManager.setGroqApiKey(key)
+									groqKeyState.value = key
+								}
 							)
 						}
 					}

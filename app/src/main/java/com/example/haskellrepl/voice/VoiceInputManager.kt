@@ -16,6 +16,7 @@ class VoiceInputManager(private val context: android.content.Context) {
 		data object Idle : State()
 		data object Recording : State()
 		data object Transcribing : State()
+		data object Thinking : State()
 		data class Result(val text: String) : State()
 		data class Error(val message: String) : State()
 		data class Downloading(val progress: Int) : State()
@@ -30,6 +31,12 @@ class VoiceInputManager(private val context: android.content.Context) {
 	private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 	private var initialized = false
 	private var isRecording = false
+
+	private val prefs = context.getSharedPreferences("haskell_repl_prefs", android.content.Context.MODE_PRIVATE)
+	private fun getGroqConverter(): GroqCodeConverter? {
+		val key = prefs.getString("groq_api_key", null)
+		return if (key.isNullOrBlank()) null else GroqCodeConverter(key)
+	}
 
 	private val sampleRate = 16000
 	private val channelConfig = AudioFormat.CHANNEL_IN_MONO
@@ -98,7 +105,19 @@ class VoiceInputManager(private val context: android.content.Context) {
 		"be" to "b",
 		"de" to "d",
 		"apply" to "",
+		"the play" to "",
+		"the ply" to "",
+		"a play" to "",
+		"a ply" to "",
 	)
+
+	fun setGroqApiKey(key: String) {
+		prefs.edit().putString("groq_api_key", key).apply()
+	}
+
+	fun getGroqApiKey(): String? {
+		return prefs.getString("groq_api_key", null)
+	}
 
 	fun hasPermission(): Boolean =
 		ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
@@ -190,7 +209,13 @@ class VoiceInputManager(private val context: android.content.Context) {
 			if (samples.isNotEmpty() && engine != null) {
 				_state.value = State.Transcribing
 				val raw = engine!!.transcribe(samples)
-				val text = postProcess(raw)
+				val converter = getGroqConverter()
+				val text = if (converter != null) {
+					_state.value = State.Thinking
+					converter.convert(raw) ?: postProcess(raw)
+				} else {
+					postProcess(raw)
+				}
 				if (text.isNotBlank()) {
 					_state.value = State.Result(text)
 				} else {
@@ -217,8 +242,8 @@ class VoiceInputManager(private val context: android.content.Context) {
 			result = result.replace(Regex("\\b${Regex.escape(word)}\\b"), symbol)
 		}
 
-		if (result.startsWith("if ") && !result.contains("then") && !result.contains("else")) {
-			result = "f " + result.substring(3)
+		if (result.matches(Regex("""^if\b.*""")) && !result.contains("then") && !result.contains("else")) {
+			result = result.replaceFirst(Regex("""^if\W*"""), "f ")
 		}
 
 		result = result
