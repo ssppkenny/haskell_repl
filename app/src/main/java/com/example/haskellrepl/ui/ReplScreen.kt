@@ -76,11 +76,12 @@ fun ReplScreen(
 			modifier = Modifier
 				.weight(if (historyEnabled || quickActionsEnabled) 0.7f else 1f)
 				.fillMaxHeight()
+				.statusBarsPadding()
 		) {
 			OutputArea(
 				lines = outputLines,
 				listState = listState,
-				modifier = Modifier.weight(1f).statusBarsPadding()
+				modifier = Modifier.weight(1f)
 			)
 
 			InputArea(
