@@ -3,6 +3,7 @@
 build/
 .idea/
 local.properties
+release.jks
 app/src/main/jniLibs/
 app/src/main/assets/ghci-root/
 app/.cxx/
