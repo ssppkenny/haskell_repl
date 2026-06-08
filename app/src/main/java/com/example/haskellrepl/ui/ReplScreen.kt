@@ -1,5 +1,9 @@
 package com.example.haskellrepl.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -12,7 +16,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -54,6 +63,28 @@ fun ReplScreen(
 	var inputValue by remember { mutableStateOf(TextFieldValue("")) }
 	val listState = rememberLazyListState()
 	var showKeyDialog by remember { mutableStateOf(false) }
+	var isFocused by remember { mutableStateOf(false) }
+	val kbController = LocalSoftwareKeyboardController.current
+	val focusManager = LocalFocusManager.current
+
+	fun insertChar(ch: String) {
+		val newText = inputValue.text + ch
+		inputValue = inputValue.copy(text = newText, selection = TextRange(newText.length))
+	}
+	fun backspace() {
+		val t = inputValue.text
+		if (t.isNotEmpty()) {
+			val newText = t.dropLast(1)
+			inputValue = inputValue.copy(text = newText, selection = TextRange(newText.length))
+		}
+	}
+	fun sendOrEnter() {
+		val text = inputValue.text
+		if (text.isNotBlank()) {
+			onSendExpression(text)
+			inputValue = TextFieldValue("")
+		}
+	}
 
 	LaunchedEffect(voiceState) {
 		if (voiceState is VoiceInputManager.State.Result) {
@@ -71,55 +102,62 @@ fun ReplScreen(
 		}
 	}
 
-	Row(modifier = modifier.fillMaxSize()) {
-		Column(
-			modifier = Modifier
-				.weight(if (historyEnabled || quickActionsEnabled) 0.7f else 1f)
-				.fillMaxHeight()
-				.statusBarsPadding()
-		) {
-			OutputArea(
-				lines = outputLines,
-				listState = listState,
-				modifier = Modifier.weight(1f)
-			)
-
-			InputArea(
-				value = inputValue,
-				onValueChange = { inputValue = it },
-				prompt = currentPrompt,
-				isContinuation = isContinuation,
-				enabled = isReady,
-				onSend = {
-					val text = inputValue.text
-					if (text.isNotBlank()) {
-						onSendExpression(text)
-						inputValue = TextFieldValue("")
-					}
-				},
-				onInterrupt = onInterrupt,
-				voiceState = voiceState,
-				onMicPressStart = onMicPressStart,
-				onMicPressEnd = onMicPressEnd,
-				onSettingsClick = { showKeyDialog = true }
-			)
-		}
-
-		if (historyEnabled || quickActionsEnabled) {
-			SidePanel(
-				modifier = Modifier
-					.weight(0.3f)
-					.fillMaxHeight(),
-				quickActionsEnabled = quickActionsEnabled,
-				onQuickAction = { action ->
-					inputValue = TextFieldValue("$action ${inputValue.text}")
-				}
-			)
-		}
+	BackHandler(enabled = isFocused) {
+		focusManager.clearFocus()
 	}
 
-	if (showKeyDialog) {
-		GroqKeyDialog(
+	Box(modifier = modifier.fillMaxSize()) {
+		Row(modifier = Modifier.fillMaxSize()) {
+			Column(
+				modifier = Modifier
+					.weight(if (historyEnabled || quickActionsEnabled) 0.7f else 1f)
+					.fillMaxHeight()
+			) {
+				InputArea(
+					value = inputValue,
+					onValueChange = { inputValue = it },
+					prompt = currentPrompt,
+					isContinuation = isContinuation,
+					enabled = isReady,
+					onSend = {
+						val text = inputValue.text
+						if (text.isNotBlank()) {
+							onSendExpression(text)
+							inputValue = TextFieldValue("")
+						}
+					},
+					onInterrupt = onInterrupt,
+					voiceState = voiceState,
+					onMicPressStart = onMicPressStart,
+					onMicPressEnd = onMicPressEnd,
+					onSettingsClick = { showKeyDialog = true },
+					onFocusChanged = { isFocused = it },
+					kbController = kbController
+				)
+
+				OutputArea(
+					lines = outputLines,
+					listState = listState,
+					modifier = Modifier.weight(1f)
+				)
+
+				AnimatedVisibility(
+					visible = isFocused,
+					enter = slideInVertically(initialOffsetY = { it }),
+					exit = slideOutVertically(targetOffsetY = { it })
+				) {
+					HaskellKeyboard(
+						onKeyPress = { insertChar(it) },
+						onEnter = { sendOrEnter() },
+						onBackspace = { backspace() },
+						modifier = Modifier.fillMaxWidth()
+					)
+				}
+			}
+		}
+
+		if (showKeyDialog) {
+			GroqKeyDialog(
 			currentKey = groqKey,
 			onDismiss = { showKeyDialog = false },
 			onSave = {
@@ -128,6 +166,7 @@ fun ReplScreen(
 			}
 		)
 	}
+}
 }
 
 @Composable
@@ -183,10 +222,12 @@ private fun InputArea(
 	onMicPressStart: () -> Unit,
 	onMicPressEnd: () -> Unit,
 	onSettingsClick: () -> Unit,
+	onFocusChanged: (Boolean) -> Unit,
+	kbController: SoftwareKeyboardController?,
 	modifier: Modifier = Modifier
 ) {
 	Surface(
-		modifier = modifier.fillMaxWidth().navigationBarsPadding(),
+		modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
 		color = TerminalSurface,
 		tonalElevation = 4.dp
 	) {
@@ -209,7 +250,12 @@ private fun InputArea(
 				value = value,
 				onValueChange = onValueChange,
 				enabled = enabled,
-				modifier = Modifier.weight(1f),
+				modifier = Modifier
+					.weight(1f)
+					.onFocusChanged { fs ->
+						if (fs.isFocused) kbController?.hide()
+						onFocusChanged(fs.isFocused)
+					},
 				textStyle = TextStyle(
 					fontFamily = FontFamily.Monospace,
 					fontSize = 14.sp,

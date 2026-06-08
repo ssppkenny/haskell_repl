@@ -68,6 +68,7 @@ class MainActivity : ComponentActivity() {
 
 		setContent {
 			HaskellReplTheme {
+				Box(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
 				val svcReady = serviceFlag.intValue
 				val svc = if (svcReady > 0) replService else null
 
@@ -158,6 +159,7 @@ class MainActivity : ComponentActivity() {
 							)
 						}
 					}
+				}
 				}
 			}
 		}
