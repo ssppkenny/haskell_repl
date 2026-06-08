@@ -119,6 +119,9 @@ tasks.register("fetchGhci") {
 					}
 				}
 			}
+			archDir.walkTopDown().filter { it.isFile && it.name.contains("_p-ghc") && it.name.endsWith(".so") }.forEach { file ->
+				file.delete()
+			}
 		}
 		assetsDir.file("lib/ghc-9.12.2/lib/html").asFile.deleteRecursively()
 		assetsDir.file("lib/ghc-9.12.2/lib/latex").asFile.deleteRecursively()
