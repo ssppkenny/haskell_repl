@@ -1,5 +1,6 @@
 package com.example.haskellrepl
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -8,6 +9,7 @@ import android.os.Bundle
 import android.os.IBinder
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -17,10 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.haskellrepl.service.ReplService
 import com.example.haskellrepl.service.ReplOutput
 import com.example.haskellrepl.ui.*
 import com.example.haskellrepl.ui.theme.*
+import com.example.haskellrepl.voice.VoiceInputManager
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
@@ -29,6 +33,7 @@ class MainActivity : ComponentActivity() {
 	private val outputLines = MutableStateFlow<List<ReplLine>>(emptyList())
 	private val stateFlow = MutableStateFlow<ReplService.ReplState>(ReplService.ReplState.Extracting)
 	private val serviceFlag = mutableIntStateOf(0)
+	private lateinit var voiceManager: VoiceInputManager
 
 	private val connection = object : ServiceConnection {
 		override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -40,8 +45,16 @@ class MainActivity : ComponentActivity() {
 		}
 	}
 
+	private val micPermissionLauncher = registerForActivityResult(
+		ActivityResultContracts.RequestPermission()
+	) { granted ->
+		if (granted) { /* ready */ }
+	}
+
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
+		voiceManager = VoiceInputManager(this)
+
 		bindService(
 			Intent(this, ReplService::class.java),
 			connection,
@@ -82,6 +95,7 @@ class MainActivity : ComponentActivity() {
 			}
 
 			val state by stateFlow.collectAsState()
+			val voiceState = voiceManager.state.collectAsStateWithLifecycle().value
 				val currentPrompt = when (state) {
 					is ReplService.ReplState.Prompt -> (state as ReplService.ReplState.Prompt).module
 					else -> "Prelude"
@@ -119,6 +133,17 @@ class MainActivity : ComponentActivity() {
 									replService?.sendExpression(expr)
 								},
 								onInterrupt = { replService?.interrupt() },
+								voiceState = voiceState,
+								onMicPressStart = {
+									if (voiceManager.hasPermission()) {
+										voiceManager.startRecording()
+									} else {
+										micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+									}
+								},
+								onMicPressEnd = {
+									voiceManager.stopRecording()
+								},
 								historyEnabled = true,
 								quickActionsEnabled = true
 							)
@@ -131,6 +156,7 @@ class MainActivity : ComponentActivity() {
 
 	override fun onDestroy() {
 		unbindService(connection)
+		voiceManager.destroy()
 		super.onDestroy()
 	}
 }

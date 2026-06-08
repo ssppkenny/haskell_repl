@@ -1,5 +1,6 @@
 package com.example.haskellrepl.ui
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,12 +12,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.haskellrepl.ui.theme.*
+import com.example.haskellrepl.voice.VoiceInputManager
 
 data class ReplLine(
 	val text: String,
@@ -38,12 +41,25 @@ fun ReplScreen(
 	isReady: Boolean,
 	onSendExpression: (String) -> Unit,
 	onInterrupt: () -> Unit,
+	voiceState: VoiceInputManager.State,
+	onMicPressStart: () -> Unit,
+	onMicPressEnd: () -> Unit,
 	historyEnabled: Boolean,
 	quickActionsEnabled: Boolean,
 	modifier: Modifier = Modifier
 ) {
 	var inputValue by remember { mutableStateOf(TextFieldValue("")) }
 	val listState = rememberLazyListState()
+
+	LaunchedEffect(voiceState) {
+		if (voiceState is VoiceInputManager.State.Result) {
+			val newText = voiceState.text
+			inputValue = TextFieldValue(
+				if (inputValue.text.isEmpty()) newText
+				else inputValue.text + " " + newText
+			)
+		}
+	}
 
 	LaunchedEffect(outputLines.size) {
 		if (outputLines.isNotEmpty()) {
@@ -76,7 +92,10 @@ fun ReplScreen(
 						inputValue = TextFieldValue("")
 					}
 				},
-				onInterrupt = onInterrupt
+				onInterrupt = onInterrupt,
+				voiceState = voiceState,
+				onMicPressStart = onMicPressStart,
+				onMicPressEnd = onMicPressEnd
 			)
 		}
 
@@ -143,6 +162,9 @@ private fun InputArea(
 	enabled: Boolean,
 	onSend: () -> Unit,
 	onInterrupt: () -> Unit,
+	voiceState: VoiceInputManager.State,
+	onMicPressStart: () -> Unit,
+	onMicPressEnd: () -> Unit,
 	modifier: Modifier = Modifier
 ) {
 	Surface(
@@ -191,6 +213,11 @@ private fun InputArea(
 			)
 
 			if (enabled) {
+				MicButton(
+					state = voiceState,
+					onPressStart = onMicPressStart,
+					onPressEnd = onMicPressEnd
+				)
 				IconButton(onClick = onSend) {
 					Text(">", color = TerminalGreen, fontSize = 18.sp)
 				}
@@ -239,5 +266,51 @@ private fun QuickActionChip(label: String, onClick: (String) -> Unit) {
 			),
 			modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
 		)
+	}
+}
+
+@Composable
+private fun MicButton(
+	state: VoiceInputManager.State,
+	onPressStart: () -> Unit,
+	onPressEnd: () -> Unit
+) {
+	var pressed by remember { mutableStateOf(false) }
+
+	val modifier = Modifier
+		.pointerInput(Unit) {
+			detectTapGestures(
+				onPress = {
+					pressed = true
+					onPressStart()
+					tryAwaitRelease()
+					pressed = false
+					onPressEnd()
+				}
+			)
+		}
+
+	Box(modifier = modifier.padding(end = 4.dp)) {
+		when (state) {
+			is VoiceInputManager.State.Recording -> {
+				Text("🔴", fontSize = 16.sp)
+			}
+			is VoiceInputManager.State.Transcribing -> {
+				CircularProgressIndicator(
+					modifier = Modifier.size(18.dp),
+					color = TerminalBlue,
+					strokeWidth = 2.dp
+				)
+			}
+			is VoiceInputManager.State.Downloading -> {
+				Text("⬇", fontSize = 16.sp)
+			}
+			is VoiceInputManager.State.Error -> {
+				Text("⚠", fontSize = 16.sp, color = TerminalRed)
+			}
+			else -> {
+				Text("🎤", fontSize = 16.sp)
+			}
+		}
 	}
 }
