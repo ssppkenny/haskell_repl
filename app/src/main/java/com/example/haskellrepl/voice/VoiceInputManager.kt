@@ -97,6 +97,7 @@ class VoiceInputManager(private val context: android.content.Context) {
 		"exclamation" to "!",
 		"be" to "b",
 		"de" to "d",
+		"apply" to "",
 	)
 
 	fun hasPermission(): Boolean =
@@ -213,7 +214,7 @@ class VoiceInputManager(private val context: android.content.Context) {
 			.replace(Regex("""([a-z])(\d)"""), "$1 $2")
 
 		for ((word, symbol) in wordMap) {
-			result = result.replace(word, symbol)
+			result = result.replace(Regex("\\b${Regex.escape(word)}\\b"), symbol)
 		}
 
 		result = result
